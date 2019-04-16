@@ -14,6 +14,10 @@ Linux, OpenCV
 
 ## Example result (Natural Graph)
 
+### soc-LiveJournal1
+
+<img src="./soc-LiveJournal1.png" width="50%" height="50%" />
+
 ### cit-Patents (Undirected)
 
 <img src="./cit-Patents-undirected.png" width="50%" height="50%" />
@@ -34,32 +38,26 @@ Linux, OpenCV
 
 ## Example result: twitter_rv.net (Brightness Increment)
 
-```bash
-./tsv2heatmap --input=./twitter_rv.net --output=$HOME/twitter_rv.png --grid-width=16384 --brightness-increment=1
-```
+### twitter_rv.net (brightness-increment = 1)
 
 <img src="./twitter_rv_1.png" width="50%" height="50%" />
 
-```bash
-./tsv2heatmap --input=./twitter_rv.net --output=$HOME/twitter_rv.png --grid-width=16384 --brightness-increment=2
-```
+### twitter_rv.net (brightness-increment = 2)
 
 <img src="./twitter_rv_2.png" width="50%" height="50%" />
 
-```bash
-./tsv2heatmap --input=./twitter_rv.net --output=$HOME/twitter_rv.png --grid-width=16384 --brightness-increment=4
-```
+### twitter_rv.net (brightness-increment = 4)
 
 <img src="./twitter_rv_4.png" width="50%" height="50%" />
 
-```bash
-./tsv2heatmap --input=./twitter_rv.net --output=$HOME/twitter_rv.png --grid-width=16384 --brightness-increment=8
-```
+### twitter_rv.net (brightness-increment = 8)
 
 <img src="./twitter_rv_8.png" width="50%" height="50%" />
 
-```bash
-./tsv2heatmap --input=./twitter_rv.net --output=$HOME/twitter_rv.png --grid-width=16384 --brightness-increment=16
-```
+### twitter_rv.net (brightness-increment = 16)
 
 <img src="./twitter_rv_16.png" width="50%" height="50%" />
+
+## Copyright
+
+Copyright by Heeyong Yoon, DGIST, South Korea
