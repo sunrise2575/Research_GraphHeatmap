@@ -3,123 +3,180 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include <iostream>
-#include <string>
-#include <map>
-#include <set>
 #include <fstream>
+#include <string>
 
-static void tsv2mat(std::string const in_path, unsigned int GRIDWIDTH, unsigned int ADDVAL, cv::Mat & out) {
+#include "arg_kv_parser.h"
+
+#define BASIC_GWIDTH 2048
+#define BASIC_BINCRE 1
+
+static void get_vertices(
+		std::string const & in_path,
+		unsigned int & vertices,
+		unsigned long long & edges)
+{
 	std::ifstream ifs(in_path);
 	std::string line;
+
+	unsigned int grids = 0;
 	char * context;
 	// get size
 	unsigned int truemax = 0;
-	unsigned long long edges = 0;
+	edges = 0;
 	while (std::getline(ifs, line)) {
-		if (line[0] == '#') continue;
-		char * ptr; char *str = (char *)line.c_str();
+		if (line[0] == '#') {
+			continue;
+		}
+
+		char * ptr, *str = (char *)line.c_str();
+
 		ptr = strtok(str, "\t");
 		unsigned int src = atoi(ptr);
 		ptr = strtok(nullptr, "\t");
 		unsigned int dst = atoi(ptr);
+
 		unsigned int max = std::max(src, dst);
-		if (max > truemax) truemax = max;
+		if (max > truemax) {
+			truemax = max;
+		}
+
 		edges++;
 	}
-	
-	unsigned int vertices = truemax + 1;
-	unsigned int grids = (vertices % GRIDWIDTH) ? (vertices / GRIDWIDTH + 1) : (vertices / GRIDWIDTH);
+	ifs.close();
+
+	vertices = truemax + 1;
+}
+
+static void tsv2mat(
+		std::string const & in_path,
+		cv::Mat & out,
+		unsigned int gwidth,
+		unsigned int bincre,
+		unsigned int vertices = 0)
+{
+	unsigned int grids = 0;
+	unsigned long long edges = 0;
+
+	if (!vertices) {
+		get_vertices(in_path, vertices, edges);
+	}
+
+	grids = (vertices % gwidth) ? (vertices / gwidth + 1) : (vertices / gwidth);
+
 	printf("Vertices : %d\n", vertices);
-	printf("Edges    : %lld\n", edges);
-	printf("GridSize : %d\n", GRIDWIDTH);
+	if (edges) {
+		printf("Edges    : %lld\n", edges);
+	}
+	printf("GridSize : %d\n", gwidth);
 	printf("ImageSize: %d x %d\n", grids, grids);
+
 	out = cv::Mat::zeros(grids, grids, CV_8UC1);
 
-	ifs.close();
-	ifs.open(in_path);
+	std::ifstream ifs(in_path);
+	std::string line;
 	while (std::getline(ifs, line)) {
-		if (line[0] == '#') continue;
-		char * ptr; char *str = (char *)line.c_str();
+		if (line[0] == '#') {
+			continue;
+		}
+
+		char * ptr, *str = (char *)line.c_str();
+
 		ptr = strtok(str, "\t");
 		unsigned int src = atoi(ptr);
 		ptr = strtok(nullptr, "\t");
 		unsigned int dst = atoi(ptr);
-		auto & cur_pixel = out.at<unsigned char>(src / GRIDWIDTH, dst / GRIDWIDTH);
-		if ((unsigned int)cur_pixel + ADDVAL <= 255) cur_pixel += (unsigned char)ADDVAL;
+
+		auto & cur_pixel = out.at<unsigned char>(src / gwidth, dst / gwidth);
+
+		if ((unsigned int)cur_pixel + bincre <= 255) {
+			cur_pixel += (unsigned char)bincre;
+		}
 	}
+
 	ifs.close();
 }
 
-// <key, (variable address, variable size)>
-//using arg_kv_value_t = std::pair<void *, std::function<void(std::string &)>>;
-using arg_kv_t = std::map<std::string, std::function<void(std::string &)>>;
+static void tsv2mat_logscale(
+		std::string const & in_path,
+		cv::Mat & out,
+		unsigned int gwidth,
+		unsigned int bincre,
+		unsigned int vertices = 0)
+{
+	unsigned int grids = 0;
+	unsigned long long edges = 0;
 
-static void usage(char * argv0, arg_kv_t& arg_kv) {
-	fprintf(stderr,
-			"Usage: %s --[KEY]=[VALUE]\n"
-			"\t[KEYs]\n"
-			, argv0);
-
-	for (auto iter = arg_kv.begin(); iter != arg_kv.end(); iter++) {
-		fprintf(stderr, "\t\t%s\n", iter->first.c_str());
-	}
-	fprintf(stderr, "\n");
-	exit(EXIT_FAILURE);
-}
-
-static void arg_parse(int argc, char * argv[], arg_kv_t& arg_kv) {
-	if (argc < 2) usage(argv[0], arg_kv);
-
-	// parse and store all arg to vector kv
-	std::map<std::string, std::string> _kv;
-	for (int i = 1; i < argc; i++) {
-		if (strlen(argv[i]) < 5) {
-			fprintf(stderr, "Argument %s doesn't satisfy '--[KEY]=[VALUE]' form\n\n", argv[i]);
-			usage(argv[0], arg_kv);
-		}
-
-		if (argv[i][0] != '-' || argv[i][1] != '-') {
-			fprintf(stderr, "Argument %s doesn't satisfy '--[KEY]=[VALUE]' form\n\n", argv[i]);
-			usage(argv[0], arg_kv);
-		}
-
-		std::string s = argv[i];
-		auto eq_pos = s.find('=');
-		auto key = s.substr(2, eq_pos - 2);
-		auto value = s.substr(eq_pos + 1, s.size() - eq_pos - 1);
-
-		if (key.size() == 0 || value.size() == 0) {
-			fprintf(stderr, "Argument %s doesn't satisfy '--[KEY]=[VALUE]' form\n\n", argv[i]);
-			usage(argv[0], arg_kv);
-		}
-
-		_kv[key] = value;
+	if (!vertices) {
+		get_vertices(in_path, vertices, edges);
 	}
 
-	for (auto _kv_iter = _kv.begin(); _kv_iter != _kv.end(); ++_kv_iter) {
-		auto arg_kv_iter = arg_kv.find(_kv_iter->first);
-		if (arg_kv_iter != arg_kv.end()) {
-			arg_kv_iter->second(_kv_iter->second);
-		} else {
-			fprintf(stderr, "Key %s is unrecognized\n\n", _kv_iter->first.c_str());
-			usage(argv[0], arg_kv);
+	grids = (vertices % gwidth) ? (vertices / gwidth + 1) : (vertices / gwidth);
+
+	printf("Vertices : %d\n", vertices);
+	if (edges) {
+		printf("Edges    : %lld\n", edges);
+	}
+	printf("GridSize : %d\n", gwidth);
+	printf("ImageSize: %d x %d\n", grids, grids);
+
+	out = cv::Mat::zeros(grids, grids, CV_8UC1);
+
+	// This could be dangerous! 65536*65536==UINT_MAX, INT_MAX == UINTMAX >> 1
+	cv::Mat count = cv::Mat::zeros(grids, grids, CV_32SC1);
+
+	std::ifstream ifs(in_path);
+	std::string line;
+	while (std::getline(ifs, line)) {
+		if (line[0] == '#') {
+			continue;
+		}
+
+		char * ptr, *str = (char *)line.c_str();
+
+		ptr = strtok(str, "\t");
+		unsigned int src = atoi(ptr);
+		ptr = strtok(nullptr, "\t");
+		unsigned int dst = atoi(ptr);
+
+		count.at<int>(src / gwidth, dst / gwidth)++;
+	}
+
+	for (unsigned int row = 0; row < grids; row++) {
+		for (unsigned int col = 0; col < grids; col++) {
+			out.at<unsigned char>(row, col) += bincre * std::log2(count.at<int>(row, col));
 		}
 	}
+
+	ifs.close();
 }
 
 int main(int argc, char * argv[]) {
 	std::string input_path, output_path;
-	unsigned int gwidth = 65536, bincre = 1;
+	unsigned int gwidth=BASIC_GWIDTH, bincre=BASIC_BINCRE, vertices=0;
+	bool logscale = false;
 
 	arg_kv_t arg_kv;
 	arg_kv["input"] = [&](std::string & val){ input_path = val; };
 	arg_kv["output"] = [&](std::string & val){ output_path = val; };
 	arg_kv["grid-width"] = [&](std::string & val){ gwidth = std::atoi(val.c_str()); };
 	arg_kv["brightness-increment"] = [&](std::string & val){ bincre = std::atoi(val.c_str());};
-	arg_parse(argc, argv, arg_kv);
+	arg_kv["vertices"] = [&](std::string & val){ vertices = std::atoi(val.c_str());};
+	arg_kv["logscale"] = [&](std::string & val){ logscale = true; };
+	
+	std::vector<std::string> argv_arr(argc);
+	for (unsigned int i = 0; i < (unsigned int)argc; i++) {
+		argv_arr[i] = std::string(argv[i]);
+	}
+	arg_parse(argv_arr, arg_kv);
 
 	cv::Mat matrix(1, 1, CV_8UC1);
-	tsv2mat(input_path, gwidth, bincre, matrix);
+
+	if (logscale) {
+		tsv2mat_logscale(input_path, matrix, gwidth, bincre, vertices);
+	} else {
+		tsv2mat(input_path, matrix, gwidth, bincre, vertices);
+	}
 	cv::imwrite(output_path, matrix);
 
 	return 0;
