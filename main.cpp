@@ -73,6 +73,9 @@ static void tsv2mat(
 
 	out = cv::Mat::zeros(grids, grids, CV_8UC1);
 
+	// This could be dangerous! 65536*65536==UINT_MAX, INT_MAX == UINTMAX >> 1
+	cv::Mat count = cv::Mat::zeros(grids, grids, CV_32SC1);
+
 	std::ifstream ifs(in_path);
 	std::string line;
 	while (std::getline(ifs, line)) {
